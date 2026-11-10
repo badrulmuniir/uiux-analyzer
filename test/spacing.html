@@ -1,0 +1,22 @@
+<!-- node analyze.mjs test\spacing.html -->
+ 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Spacing test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    /* line-height check: fails (1.2 = normal-ish, below 1.5) */
+    .tight { line-height: 1.2; font-size: 16px; }
+    /* text-spacing check: fixed height, hidden overflow, clips when spacing increases */
+    .box { height: 20px; overflow: hidden; border: 1px solid #333; }
+  </style>
+</head>
+<body>
+  <h1>Spacing test page</h1>
+  <p class="tight">This paragraph has tight line height. It should be flagged by the line-height check because its line height is only 1.2 times the font size.</p>
+  <div class="box">This box has a fixed height and hidden overflow. When the text spacing is increased, the words will not fit, so the text gets cut off.</div>
+</body>
+</html>
