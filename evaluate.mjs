@@ -25,7 +25,7 @@ export function evaluate(issues) {
   return { score, totalWeight, passedWeight, issues: sorted };
 }
 
-function runAnalyzer(file) {
+export function runAnalyzer(file) {
   const dir = path.dirname(fileURLToPath(import.meta.url));
   const r = spawnSync(process.execPath, [path.join(dir, 'analyze.mjs'), file], {
     cwd: dir, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024,
