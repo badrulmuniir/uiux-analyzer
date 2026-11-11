@@ -16,7 +16,8 @@ function buildPrompt(issues, files, feedback) {
 
 Rules:
 - "find" must be copied exactly from the file and occur exactly once in that file (include enough surrounding text to be unique).
-- Only add an alt attribute to <img> tags listed in the issues. Do not change anything else.
+- Fix the top 5 issues listed. Each fix must be a small, targeted search/replace edit. Do not restructure, reformat, or reindent the file.
+- Do not change any line that is not directly related to a listed issue.
 - Alt text must describe the image briefly. Decorative images may use alt="".
 - If the image is decorative or its content cannot be determined from context, use alt="". Do not invent descriptions. Only use context from the page text near the image.
 ${feedback ? `\nFeedback from previous attempt:\n${feedback}\n` : ''}

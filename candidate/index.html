@@ -1,10 +1,11 @@
 <!-- node analyze.mjs sample\index.html -->
  
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Green Valley Bakery</title>
   <link rel="stylesheet" href="wp-content/themes/sample-theme/style.css">
 </head>
 <body class="home page-template">
@@ -14,7 +15,7 @@
         <a href="index.html"><img src="wp-content/uploads/hero.svg" class="site-logo" width="120" height="45" alt="Green Valley Bakery"></a>
         <h3 class="site-title">Green Valley Bakery</h3>
       </div>
-      <button class="menu-toggle" id="menuToggle"><span class="bar"></span><span class="bar"></span><span class="bar"></span></button>
+      <button class="menu-toggle" id="menuToggle" aria-label="Menu"><span class="bar"></span><span class="bar"></span><span class="bar"></span></button>
       <nav class="main-nav" id="mainNav">
         <a href="index.html">Home</a>
         <a href="contact/index.html">Contact</a>
@@ -36,7 +37,7 @@
       <form class="newsletter" action="#" method="post">
         <input type="email" name="email" placeholder="Your email">
         <input type="text" name="name" placeholder="Your name">
-        <button type="submit" class="btn-subscribe"><i class="icon-arrow"></i></button>
+        <button type="submit" class="btn-subscribe" aria-label="Subscribe"><i class="icon-arrow"></i></button>
       </form>
     </div>
 

@@ -8,19 +8,19 @@ body { margin: 0; font-family: Arial, sans-serif; font-size: 16px; line-height: 
 .site-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: #2f6b3a; }
 .site-branding { display: flex; align-items: center; gap: 12px; }
 .site-title { margin: 0; color: #ffffff; font-size: 20px; }
-.main-nav a { color: #9fd4a8; margin-left: 16px; text-decoration: none; }   /* low contrast on green */
+.main-nav a { color: #ffffff; margin-left: 16px; text-decoration: none; }   /* low contrast on green */
 .menu-toggle { background: none; border: 0; padding: 6px; cursor: pointer; }
 .menu-toggle .bar { display: block; width: 24px; height: 3px; margin: 4px 0; background: #fff; }
 .content-area { max-width: 800px; margin: 0 auto; padding: 24px; }
 .hero-image { max-width: 100%; height: auto; display: block; }
 .hero-title { font-size: 28px; margin: 16px 0 4px; }
-.hero-text { color: #aaaaaa; }            /* low contrast on white */
+.hero-text { color: #595959; }            /* low contrast on white */
 .section-title { margin-top: 32px; }
-.muted { color: #bbbbbb; font-size: 13px; }   /* low contrast, small */
+.muted { color: #595959; font-size: 13px; }   /* low contrast, small */
 .newsletter, .contact-form { display: flex; flex-direction: column; gap: 10px; max-width: 360px; }
 input, textarea, select { padding: 8px; border: 1px solid #ccc; font-size: 14px; }
 .btn-subscribe { background: #7fc48a; color: #ffffff; border: 0; padding: 10px 16px; cursor: pointer; }  /* low contrast */
 .site-footer { background: #eee; padding: 16px 24px; text-align: center; }
-.muted-footer { color: #999999; margin: 0; font-size: 12px; }
+.muted-footer { color: #595959; margin: 0; font-size: 12px; }
 a:focus, button:focus, input:focus { outline: none; }   /* removes keyboard focus ring */
 @media (max-width: 600px) { .site-header { flex-direction: column; align-items: flex-start; } }
