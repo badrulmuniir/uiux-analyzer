@@ -76,7 +76,10 @@ const graph = new StateGraph(State)
 export const pipeline = graph.compile();
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const s = await pipeline.invoke({ dir: 'sample/', entry: 'index.html' });
+  const s = await pipeline.invoke({
+    dir: process.argv[2] || 'sample/',
+    entry: process.argv[3] || 'index.html',
+  });
   console.log(`scoreBefore: ${s.scoreBefore}`);
   console.log(`scoreAfter: ${s.scoreAfter}`);
   console.log(`accepted: ${s.accepted}`);
