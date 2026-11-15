@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Annotation, StateGraph, START, END } from '@langchain/langgraph';
 import { runAnalyzer, evaluate } from './evaluate.mjs';
-import { improve } from './improver.mjs';
+import { improveAll } from './improver.mjs';
 import { validate } from './validator.mjs';
 
 const replace = (_, b) => b;
@@ -49,7 +49,7 @@ async function improverNode(state) {
   for (const f of listFiles(root)) {
     files[path.relative(root, f).split(path.sep).join('/')] = fs.readFileSync(f, 'utf8');
   }
-  const { edits } = await improve(state.issues.slice(0, 5), files, state.feedback);
+  const { edits } = await improveAll(state.issues, files, state.feedback);
   return { edits, attempts: state.attempts + 1 };
 }
 
@@ -85,4 +85,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   console.log(`accepted: ${s.accepted}`);
   console.log(`attempts: ${s.attempts}`);
   console.log(`issues found: ${s.issues.length}`);
+  if (fs.existsSync(path.join('candidate', s.entry))) {
+    const left = evaluate(runAnalyzer(path.join('candidate', s.entry))).issues;
+    console.log(`issues still present (${left.length}): ${[...new Set(left.map((i) => i.id))].join(', ')}`);
+  }
 }

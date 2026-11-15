@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <title>Tech Solutions</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; font-family: Arial, sans-serif; font-size: 16px; background: #fff; color: #222; }
 
     /* PROBLEM 13: focus outline removed */
-    a:focus, button:focus, input:focus, select:focus, textarea:focus { outline: none; }
+    :focus-visible { outline: 3px solid #1a73e8; outline-offset: 2px; }
 
     .header { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: #1a4a8a; }
     .logo-wrap { display: flex; align-items: center; gap: 10px; }
@@ -21,15 +21,15 @@
     .hero { background: #e8f0fe; padding: 40px 24px; text-align: center; }
 
     /* PROBLEM 8: low contrast hero text */
-    .hero p { color: #595959; font-size: 18px; }
+    .hero p { color: #595959; font-size: 18px; line-height: 1.5; }
 
     .content { max-width: 800px; margin: 0 auto; padding: 24px; }
 
     /* PROBLEM 13: line height too tight */
-    .tight-text { line-height: 1.2; font-size: 16px; }
+    .tight-text { line-height: 1.5; font-size: 16px; }
 
     /* PROBLEM 8: low contrast muted */
-    .muted { color: #595959; font-size: 13px; }
+    .muted { color: #595959; font-size: 13px; line-height: 1.5; }
 
     /* PROBLEM 14: text spacing - fixed box that clips */
     .clipped-box { height: 24px; overflow: hidden; background: #f5f5f5; padding: 4px 8px; border: 1px solid #ddd; }
@@ -42,12 +42,12 @@
     .btn-icon { background: #1a4a8a; border: 0; padding: 8px; cursor: pointer; }
 
     /* PROBLEM 16: tiny touch target */
-    .small-btn { background: #ccc; border: 0; width: 18px; height: 18px; cursor: pointer; font-size: 10px; }
+    .small-btn { background: #ccc; border: 0; width: 24px; height: 24px; min-width: 24px; min-height: 24px; cursor: pointer; font-size: 10px; }
 
     .footer { background: #f0f0f0; padding: 16px 24px; text-align: center; }
 
     /* PROBLEM 8: low contrast footer */
-    .footer p { color: #595959; font-size: 12px; }
+    .footer p { color: #595959; font-size: 12px; line-height: 1.5; }
   </style>
 </head>
 <body>
@@ -59,7 +59,7 @@
   <div class="logo-wrap">
     <!-- PROBLEM 3: image no alt -->
     <a href="index.html">
-      <img src="logo.png" alt="Tech Solutions" width="100" height="40">
+      <img src="logo.png" width="100" height="40" alt="Tech Solutions logo">
     </a>
     <span class="site-name">Tech Solutions</span>
   </div>
@@ -73,14 +73,14 @@
     <a href="#">Home</a>
     <a href="#">Services</a>
     <!-- PROBLEM 6: link no text -->
-    <a href="#contact"></a>
+    <a href="#contact">Contact</a>
     <a href="#">About</a>
   </nav>
 </header>
 
 <div class="hero">
   <!-- PROBLEM 10: heading order skips h1 to h3 -->
-  <h3>Welcome to Tech Solutions</h3>
+  <h1>Welcome to Tech Solutions</h1>
   <p>We build digital products that matter.</p>
 </div>
 
@@ -99,16 +99,16 @@
 
   <!-- PROBLEM 17: duplicate IDs -->
   <div id="service-1">Web Development</div>
-  <div id="service-1">Mobile Apps</div>
-  <div id="service-1">Cloud Services</div>
+  <div id="service-2">Mobile Apps</div>
+  <div id="service-3">Cloud Services</div>
 
   <h2>Contact Us</h2>
   <div class="form-section" id="contact">
 
     <!-- PROBLEM 4: form fields no label (placeholder only) -->
-    <input type="text" placeholder="Your full name">
-    <input type="email" placeholder="Email address">
-    <textarea rows="4" placeholder="Your message"></textarea>
+    <input type="text" placeholder="Your full name" aria-label="Your full name">
+    <input type="email" placeholder="Email address" aria-label="Email address">
+    <textarea rows="4" placeholder="Your message" aria-label="Your message"></textarea>
     <select>
       <option>Select a service</option>
       <option>Web Development</option>
@@ -129,7 +129,7 @@
   </div>
 
   <!-- PROBLEM 3: another image no alt -->
-  <img src="team.jpg" alt="" width="400" height="200" style="margin-top:20px;max-width:100%">
+  <img src="team.jpg" width="400" height="200" alt="Tech Solutions team" style="margin-top:20px;max-width:100%">
 
 </div>
 
