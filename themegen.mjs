@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ZipArchive } from "archiver";
+import { derivePalette, extractBrandColors } from "./colors.mjs";
 
 // Values shared by every style. A style only lists what differs.
 export const defaultConfig = {
@@ -384,10 +385,32 @@ function themeJson(c) {
 export function generateTheme(styleName, overrides, outDir) {
   const style = STYLES[styleName];
   if (!style) throw new Error(`unknown style "${styleName}" (have: ${Object.keys(STYLES).join(", ")})`);
+  // options: { colorMode: "preset"|"brand"|"custom", customColor, brandCss, ...config overrides }
+  const { colorMode = "preset", customColor, brandCss, ...rest } = overrides ?? {};
   // defaults < style < overrides; nested token groups merge one level deep
-  const c = { ...defaultConfig, ...style, ...overrides };
+  const c = { ...defaultConfig, ...style, ...rest };
   for (const k of ["colors", "fontScale", "footer"]) {
-    c[k] = { ...defaultConfig[k], ...style[k], ...overrides?.[k] };
+    c[k] = { ...defaultConfig[k], ...style[k], ...rest[k] };
+  }
+
+  let sourceColor = null;
+  if (colorMode === "custom") {
+    if (!customColor) throw new Error('colorMode "custom" needs options.customColor');
+    sourceColor = customColor;
+  } else if (colorMode === "brand") {
+    sourceColor = extractBrandColors(brandCss);
+    if (!sourceColor) console.log("No brand colour found in the CSS, using the preset palette.");
+    else console.log(`Brand colour detected: ${sourceColor}`);
+  } else if (colorMode !== "preset") {
+    throw new Error(`unknown colorMode "${colorMode}" (preset, brand, custom)`);
+  }
+  const adjustments = [];
+  if (sourceColor) {
+    // explicit overrides.colors still win over the derived palette
+    c.colors = { ...derivePalette(sourceColor, styleName, adjustments), ...rest.colors };
+    for (const a of adjustments) {
+      console.log(`${a.dark ? "Lightened" : "Darkened"} ${a.from} to ${a.to} so text passes 4.5:1`);
+    }
   }
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(c.slug)) {
     throw new Error(`slug must be kebab-case: "${c.slug}"`);
@@ -416,7 +439,7 @@ export function generateTheme(styleName, overrides, outDir) {
     fs.copyFileSync(path.join(fontSrc, f), path.join(fontOut, f));
     written.push(`assets/fonts/${f}`);
   }
-  return { dir: root, files: written };
+  return { dir: root, files: written, colors: c.colors, adjustments };
 }
 
 export function zipTheme(slug, outDir) {
@@ -435,17 +458,41 @@ export function zipTheme(slug, outDir) {
 
 // ---- CLI ----------------------------------------------------------------
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const [styleName, slug] = process.argv.slice(2);
+  const usage = `Usage: node themegen.mjs <${Object.keys(STYLES).join("|")}> <slug> [--color=#hex] [--brand=file.css] [--mode=preset|custom|brand]`;
+  console.log("raw argv:", process.argv);
+
+  // positionals: <style> <slug>; flags: --key=value (the value may start with #)
+  const positional = [];
+  const flags = {};
+  for (const arg of process.argv.slice(2)) {
+    const m = /^--([a-z]+)=(.*)$/.exec(arg);
+    if (m) flags[m[1]] = m[2];
+    else if (arg.startsWith("--")) flags[arg.slice(2)] = true;
+    else positional.push(arg);
+  }
+  const [styleName, slug] = positional;
+  const options = { slug };
+  if (flags.color !== undefined) {
+    options.colorMode = "custom"; // --color implies custom, no --mode needed
+    options.customColor = flags.color;
+  } else if (flags.brand !== undefined) {
+    options.colorMode = "brand";
+    options.brandCss = fs.readFileSync(path.resolve(flags.brand), "utf8");
+  }
+  if (typeof flags.mode === "string") options.colorMode = flags.mode; // explicit --mode wins
+  console.log("parsed options:", { style: styleName, ...options, brandCss: options.brandCss && `<${options.brandCss.length} chars>` });
+
   if (!STYLES[styleName] || !slug) {
-    console.error(`Usage: node themegen.mjs <${Object.keys(STYLES).join("|")}> <slug>`);
+    console.error(usage);
     process.exit(1);
   }
   const outDir = path.resolve("generated");
-  const name = slug.split("-").map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
-  const { dir, files } = generateTheme(styleName, { slug, name }, outDir);
+  options.name = slug.split("-").map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
+  const { dir, files, colors } = generateTheme(styleName, options, outDir);
   const zip = await zipTheme(slug, outDir);
   console.log("Theme dir:", dir);
   console.log("Zip:      ", zip);
+  console.log("Final palette:", colors);
   console.log("Files:");
   files.forEach((f) => console.log("  " + slug + "/" + f));
 }

@@ -1,0 +1,41 @@
+/*
+Theme Name: Custom Test
+Author: Badrul Munir
+Version: 1.0
+Requires at least: 6.0
+Requires PHP: 7.4
+License: GPL-2.0-or-later
+Text Domain: custom-test
+*/
+
+.site-header {
+  border-bottom: 1px solid color-mix(in srgb, var(--wp--preset--color--contrast) 12%, transparent);
+}
+
+/* Footer links use a palette colour chosen per style to stay readable on the footer background. */
+.site-footer a {
+  color: var(--wp--preset--color--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.site-footer a:hover,
+.site-footer a:focus {
+  color: var(--wp--preset--color--base);
+}
+
+.post-card {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--wp--preset--color--contrast) 10%, transparent);
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.post-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--wp--preset--color--contrast) 8%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .post-card { transition: none; }
+  .post-card:hover { transform: none; }
+}
