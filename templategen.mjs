@@ -259,15 +259,17 @@ export function generateFrontPage(sections) {
 }
 
 // ---- whole theme -----------------------------------------------------------------------------------------
-export async function generateAdaptiveTheme(htmlPath, themeDir, { style = "modern" } = {}) {
+export async function generateAdaptiveTheme(htmlPath, themeDir, { style = "modern", brandCss } = {}) {
   const slug = path.basename(path.resolve(themeDir));
   const outDir = path.dirname(path.resolve(themeDir));
   const sections = await detectStructure(htmlPath);
 
   // brand colour from the source page's own CSS (same approach as the fixed-template flow)
   const dir = path.dirname(path.resolve(htmlPath));
-  const css = [htmlPath, ...fs.readdirSync(dir).filter((f) => f.endsWith(".css")).map((f) => path.join(dir, f))]
-    .map((f) => fs.readFileSync(f, "utf8")).join("\n");
+  const css =
+    brandCss ??
+    [htmlPath, ...fs.readdirSync(dir).filter((f) => f.endsWith(".css")).map((f) => path.join(dir, f))]
+      .map((f) => fs.readFileSync(f, "utf8")).join("\n");
   const name = slug.split("-").map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
 
   // everything except the front page (theme.json, style.css, parts, other templates, fonts) comes from themegen
