@@ -12,18 +12,6 @@ Text Domain: modern-base
   border-bottom: 1px solid color-mix(in srgb, var(--wp--preset--color--contrast) 12%, transparent);
 }
 
-/* Footer links use a palette colour chosen per style to stay readable on the footer background. */
-.site-footer a {
-  color: var(--wp--preset--color--accent);
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-}
-
-.site-footer a:hover,
-.site-footer a:focus {
-  color: var(--wp--preset--color--base);
-}
-
 .post-card {
   border-style: solid;
   border-color: color-mix(in srgb, var(--wp--preset--color--contrast) 10%, transparent);

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ZipArchive } from "archiver";
-import { derivePalette, extractBrandColors } from "./colors.mjs";
+import { derivePalette, extractBrandColors, ensureContrast, contrastRatio } from "./colors.mjs";
 
 // Values shared by every style. A style only lists what differs.
 export const defaultConfig = {
@@ -45,7 +45,7 @@ export const STYLES = {
     headingWeight: "500",
     letterSpacing: "-0.02em",
     cardBg: "base",
-    footer: { bg: "contrast", text: "base", link: "accent", hover: "base" },
+    footer: { bg: "contrast", text: "base" },
   },
   minimal: {
     colors: { base: "#ffffff", contrast: "#171717", primary: "#171717", secondary: "#737373", accent: "#fafafa" },
@@ -57,7 +57,7 @@ export const STYLES = {
     cardStyle: "flat",
     linkUnderline: true, // primary equals body text colour, so underline marks links
     cardBg: "base",
-    footer: { bg: "contrast", text: "base", link: "accent", hover: "base" },
+    footer: { bg: "contrast", text: "base" },
   },
   bold: {
     colors: { base: "#0f172a", contrast: "#ffffff", primary: "#a78bfa", secondary: "#94a3b8", accent: "#1e293b" },
@@ -67,7 +67,7 @@ export const STYLES = {
     letterSpacing: "-0.03em",
     cardBg: "accent",
     // Page is dark (base), so the footer uses accent, which is lighter than base.
-    footer: { bg: "accent", text: "contrast", link: "contrast", hover: "primary" },
+    footer: { bg: "accent", text: "contrast" },
     fontScale: {
       large: { min: "1.375rem", max: "1.75rem" },
       xLarge: { min: "2rem", max: "3rem" },
@@ -88,10 +88,12 @@ const HEADER = `<!-- wp:group {"className":"site-header","align":"wide","style":
 <!-- /wp:group -->
 `;
 // The group is the <footer> element, so the template-part wrapper is a div
-// (see wrapMain) to avoid a footer nested in a footer. Link colours on the
-// dark background are set in style.css (.site-footer a).
-const FOOTER = `<!-- wp:group {"tagName":"footer","align":"full","className":"site-footer","backgroundColor":"%FOOT_BG%","textColor":"%FOOT_TX%","style":{"spacing":{"padding":{"top":"var:preset|spacing|50","bottom":"var:preset|spacing|50","left":"var:preset|spacing|40","right":"var:preset|spacing|40"}}},"layout":{"type":"constrained"}} -->
-<footer class="wp-block-group alignfull site-footer has-%FOOT_TX%-color has-%FOOT_BG%-background-color has-text-color has-background" style="padding-top:var(--wp--preset--spacing--50);padding-right:var(--wp--preset--spacing--40);padding-bottom:var(--wp--preset--spacing--50);padding-left:var(--wp--preset--spacing--40)">
+// (see wrapMain) to avoid a footer nested in a footer. Footer links use the
+// derived "primary-on-dark" palette colour (primary lightened to pass 4.5:1 on the
+// footer background). It is set as a block attribute because style.css is not
+// loaded on the front end of a block theme.
+const FOOTER = `<!-- wp:group {"tagName":"footer","align":"full","className":"site-footer","backgroundColor":"%FOOT_BG%","textColor":"%FOOT_TX%","style":{"elements":{"link":{"color":{"text":"var:preset|color|primary-on-dark"}}},"spacing":{"padding":{"top":"var:preset|spacing|50","bottom":"var:preset|spacing|50","left":"var:preset|spacing|40","right":"var:preset|spacing|40"}}},"layout":{"type":"constrained"}} -->
+<footer class="wp-block-group alignfull site-footer has-%FOOT_TX%-color has-%FOOT_BG%-background-color has-text-color has-background has-link-color" style="padding-top:var(--wp--preset--spacing--50);padding-right:var(--wp--preset--spacing--40);padding-bottom:var(--wp--preset--spacing--50);padding-left:var(--wp--preset--spacing--40)">
 <!-- wp:group {"align":"wide","layout":{"type":"flex","flexWrap":"wrap","justifyContent":"space-between","verticalAlignment":"center"}} -->
 <div class="wp-block-group alignwide">
 <!-- wp:group {"layout":{"type":"flex","orientation":"vertical"}} -->
@@ -218,18 +220,6 @@ Text Domain: ${c.slug}
   border-bottom: 1px solid color-mix(in srgb, var(--wp--preset--color--contrast) 12%, transparent);
 }
 
-/* Footer links use a palette colour chosen per style to stay readable on the footer background. */
-.site-footer a {
-  color: var(--wp--preset--color--${c.footer.link});
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-}
-
-.site-footer a:hover,
-.site-footer a:focus {
-  color: var(--wp--preset--color--${c.footer.hover});
-}
-
 ${cardCss(c)}`;
 }
 
@@ -299,7 +289,7 @@ const SPACING_SIZES = [
 
 function themeJson(c) {
   const f = c.fontScale;
-  const names = { base: "Base", contrast: "Contrast", primary: "Primary", secondary: "Secondary", accent: "Accent" };
+  const names = { base: "Base", contrast: "Contrast", primary: "Primary", secondary: "Secondary", accent: "Accent", "primary-on-dark": "Primary on dark" };
   const palette = Object.entries(c.colors).map(([slug, color]) => ({
     slug,
     color,
@@ -411,6 +401,15 @@ export function generateTheme(styleName, overrides, outDir) {
     for (const a of adjustments) {
       console.log(`${a.dark ? "Lightened" : "Darkened"} ${a.from} to ${a.to} so text passes 4.5:1`);
     }
+  }
+  // Footer links sit on the footer background, which is not the page base, so the primary colour
+  // (validated against base) can fail there. Derive a variant that passes 4.5:1 on the footer.
+  const footerBg = c.colors[c.footer.bg];
+  const onDark = ensureContrast(c.colors.primary, footerBg, 4.5);
+  c.colors = { ...c.colors, "primary-on-dark": onDark.color };
+  if (onDark.changed) {
+    const lighter = contrastRatio(onDark.color, "#ffffff") < contrastRatio(onDark.originalColor, "#ffffff");
+    console.log(`${lighter ? "Lightened" : "Darkened"} ${onDark.originalColor} to ${onDark.color} for footer links on ${footerBg} so they pass 4.5:1`);
   }
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(c.slug)) {
     throw new Error(`slug must be kebab-case: "${c.slug}"`);

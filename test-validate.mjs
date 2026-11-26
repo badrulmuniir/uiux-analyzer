@@ -51,6 +51,14 @@ const variants = [
     },
   },
   {
+    name: "footer links use primary on the dark footer",
+    expectFail: [6],
+    break: (dir) => {
+      const f = path.join(dir, "parts", "footer.html");
+      fs.writeFileSync(f, fs.readFileSync(f, "utf8").replace("var:preset|color|primary-on-dark", "var:preset|color|primary"));
+    },
+  },
+  {
     name: "zip with files at archive root",
     expectFail: [1],
     rootZip: true,

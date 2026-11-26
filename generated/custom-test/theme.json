@@ -34,6 +34,11 @@
           "slug": "accent",
           "color": "#fdedf0",
           "name": "Accent"
+        },
+        {
+          "slug": "primary-on-dark",
+          "color": "#e74065",
+          "name": "Primary on dark"
         }
       ]
     },

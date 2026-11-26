@@ -255,16 +255,35 @@ async function checkTextSpacing(page) {
     : [];
 }
 
-async function analyze(file) {
+const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost']);
+
+// Accepts a file path (file:// only) or an http://127.0.0.1[:port] / http://localhost[:port]
+// URL (requests to that same origin only; everything else is still blocked).
+function resolveTarget(input) {
+  if (/^https?:\/\//i.test(input)) {
+    let u;
+    try {
+      u = new URL(input);
+    } catch {
+      throw new AnalyzeError('NO_HTML', `Invalid URL: ${input}`);
+    }
+    if (u.protocol !== 'http:' || !LOCAL_HOSTS.has(u.hostname)) {
+      throw new AnalyzeError('NO_HTML', `Only http://127.0.0.1 or http://localhost URLs are allowed, got: ${input}`);
+    }
+    return { url: u.href, allow: (reqUrl) => { try { return new URL(reqUrl).origin === u.origin; } catch { return false; } } };
+  }
   let stat;
   try {
-    stat = statSync(file);
+    stat = statSync(input);
   } catch {
-    throw new AnalyzeError('NO_HTML', `File not found: ${file}`);
+    throw new AnalyzeError('NO_HTML', `File not found: ${input}`);
   }
-  if (!stat.isFile()) throw new AnalyzeError('NO_HTML', `Not a file: ${file}`);
+  if (!stat.isFile()) throw new AnalyzeError('NO_HTML', `Not a file: ${input}`);
+  return { url: pathToFileURL(path.resolve(input)).href, allow: (reqUrl) => reqUrl.startsWith('file://') };
+}
 
-  const url = pathToFileURL(path.resolve(file)).href;
+async function analyze(file) {
+  const { url, allow } = resolveTarget(file);
   const browser = await chromium.launch({ headless: true });
   let timer;
   try {
@@ -272,7 +291,7 @@ async function analyze(file) {
     context.setDefaultTimeout(TIMEOUT);
     context.setDefaultNavigationTimeout(TIMEOUT);
     await context.route('**/*', (route) =>
-      route.request().url().startsWith('file://') ? route.continue() : route.abort()
+      allow(route.request().url()) ? route.continue() : route.abort()
     );
 
     const page = await context.newPage();
@@ -310,7 +329,7 @@ async function analyze(file) {
 }
 
 const file = process.argv[2];
-if (!file) fail('NO_HTML', 'Usage: node analyze.mjs <path-to-html>');
+if (!file) fail('NO_HTML', 'Usage: node analyze.mjs <path-to-html | http://127.0.0.1:PORT/>');
 
 try {
   const violations = await analyze(file);
