@@ -169,6 +169,18 @@ function killTree(child) {
   } catch { /* already gone */ }
 }
 
+// Windows keeps a dying process's log file locked for a moment; retry instead of leaving temp dirs.
+async function removeDir(dir) {
+  for (let i = 0; i < 20; i++) {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+      return;
+    } catch {
+      await sleep(500);
+    }
+  }
+}
+
 const readLog = (f) => (fs.existsSync(f) ? fs.readFileSync(f, "utf8") : "");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -269,7 +281,94 @@ file_put_contents('/out/result.json', json_encode($r));
     return ok(id, name, `activated "${result.name}" (block theme), global styles ${result.css_bytes} bytes, ${result.palette_count} palette colours, no PHP warnings`);
   } finally {
     killTree(child);
-    fs.rmSync(tmp, { recursive: true, force: true });
+    await removeDir(tmp);
+  }
+}
+
+// Is something accepting connections on this port?
+function portInUse(port) {
+  return new Promise((resolve) => {
+    const s = net.connect({ port, host: "127.0.0.1" });
+    s.once("connect", () => { s.destroy(); resolve(true); });
+    s.once("error", () => resolve(false));
+  });
+}
+
+// Kill the whole process tree, then make sure the port is really free before returning.
+// If something still listens (a stray child), find its pid from the port and kill that too.
+async function stopServer(server, port) {
+  killTree(server?.child);
+  if (!port) return;
+  for (let i = 0; i < 20 && (await portInUse(port)); i++) {
+    if (process.platform === "win32") {
+      const out = spawnSync("netstat", ["-ano", "-p", "TCP"], { encoding: "utf8" }).stdout ?? "";
+      for (const line of out.split(/\r?\n/)) {
+        // netstat columns: proto, local address, foreign address, state, pid
+        const [, local, , state, pid] = line.trim().split(/\s+/);
+        if (local === `127.0.0.1:${port}` && state === "LISTENING" && pid) {
+          spawnSync("taskkill", ["/PID", pid, "/T", "/F"], { stdio: "ignore" });
+        }
+      }
+    }
+    await sleep(500);
+  }
+}
+
+// One attempt: start a server on a fresh free port, wait for it, warm it up, score the page.
+// Returns { tooling: "..." } when the SERVER could not be brought up (says nothing about the
+// theme), or { result: check } once the server answered and the theme was actually judged.
+async function renderAttempt(themeDir, tmp, attempt) {
+  const id = 7, name = "rendered-score";
+  const logFile = path.join(tmp, `server-${attempt}.log`);
+  const port = await freePort();
+  let server;
+  try {
+    server = startPlayground(["server", `--port=${port}`, `--auto-mount=${q(path.resolve(themeDir))}`], logFile);
+
+    // wait for the "Ready! WordPress is running on http://127.0.0.1:PORT" line
+    let url = null;
+    let exitedEarly = false;
+    server.exited.then(() => { exitedEarly = true; });
+    const deadline = Date.now() + SERVER_START_TIMEOUT_MS;
+    while (Date.now() < deadline && !exitedEarly) {
+      const m = /Ready!.*?(http:\/\/127\.0\.0\.1:\d+)/.exec(readLog(logFile));
+      if (m) { url = m[1] + "/"; break; }
+      await sleep(500);
+    }
+    if (!url) {
+      const why = exitedEarly ? "the Playground process exited" : `no "Ready!" within ${SERVER_START_TIMEOUT_MS / 1000}s`;
+      return { tooling: `${why} on port ${port}. Log tail: ${readLog(logFile).trim().slice(-300) || "(empty)"}` };
+    }
+
+    // Warm up: the first request installs WordPress and redirects. Connection errors mean the
+    // server is not really up (tooling); an HTTP error status is the theme's page failing.
+    let status = 0, answered = 0, lastError = "";
+    for (let i = 0; i < 60 && status !== 200 && answered < 3; i++) {
+      try {
+        status = (await fetch(url, { redirect: "follow", signal: AbortSignal.timeout(30_000) })).status;
+        if (status !== 200) answered++;
+      } catch (e) {
+        lastError = `${e.message}${e.cause ? `: ${e.cause.message ?? e.cause}` : ""}`;
+        await sleep(1000);
+      }
+    }
+    if (status === 0) return { tooling: `${url} never answered (${lastError})` };
+    if (status !== 200) {
+      return { result: fail(id, name, `THEME FAILURE: the server is up but the front page returns HTTP ${status}`) };
+    }
+
+    let issues;
+    try {
+      issues = runAnalyzer(url);
+    } catch (e) {
+      return { tooling: `analyzer could not run: ${String(e.message).slice(0, 300)}` };
+    }
+    const { score, issues: sorted } = evaluate(issues);
+    const remaining = sorted.map((i) => i.id).join(", ") || "none";
+    const detail = `score ${score}/100 (min ${SCORE_MIN}); remaining issues: ${remaining}`;
+    return { result: score >= SCORE_MIN ? ok(id, name, detail) : fail(id, name, `THEME FAILURE: ${detail}`) };
+  } finally {
+    await stopServer(server, port); // always, even on error; returns once the port is free
   }
 }
 
@@ -277,52 +376,17 @@ file_put_contents('/out/result.json', json_encode($r));
 async function checkRenderedScore(themeDir) {
   const id = 7, name = "rendered-score";
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "validate-render-"));
-  const logFile = path.join(tmp, "server.log");
-  let server;
   try {
-    const port = await freePort();
-    server = startPlayground(
-      ["server", `--port=${port}`, `--auto-mount=${q(path.resolve(themeDir))}`],
-      logFile
-    );
-
-    // wait for the "Ready! WordPress is running on http://127.0.0.1:PORT" line
-    let url = null;
-    const deadline = Date.now() + SERVER_START_TIMEOUT_MS;
-    let exitedEarly = false;
-    server.exited.then(() => { exitedEarly = true; });
-    while (Date.now() < deadline && !exitedEarly) {
-      const m = /Ready!.*?(http:\/\/127\.0\.0\.1:\d+)/.exec(readLog(logFile));
-      if (m) { url = m[1] + "/"; break; }
-      await sleep(500);
+    const problems = [];
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      const r = await renderAttempt(themeDir, tmp, attempt);
+      if (r.result) return r.result;
+      problems.push(`attempt ${attempt}: ${r.tooling}`);
     }
-    if (!url) return fail(id, name, `server did not start: ${readLog(logFile).trim().slice(-300) || "(no output)"}`);
-
-    // warm up: the first request installs WordPress and redirects
-    // Connection errors are retried (server still booting); a real HTTP error such as 500 is
-    // final after three tries.
-    let status = 0, answered = 0;
-    for (let i = 0; i < 60 && status !== 200 && answered < 3; i++) {
-      try {
-        status = (await fetch(url, { redirect: "follow", signal: AbortSignal.timeout(30_000) })).status;
-        if (status !== 200) answered++;
-      } catch { await sleep(1000); }
-    }
-    if (status !== 200) return fail(id, name, `${url} did not return 200 (last status ${status})`);
-
-    let issues;
-    try {
-      issues = runAnalyzer(url);
-    } catch (e) {
-      return fail(id, name, `analyzer failed: ${String(e.message).slice(0, 300)}`);
-    }
-    const { score, issues: sorted } = evaluate(issues);
-    const remaining = sorted.map((i) => i.id).join(", ") || "none";
-    const detail = `score ${score}/100 (min ${SCORE_MIN}); remaining issues: ${remaining}`;
-    return score >= SCORE_MIN ? ok(id, name, detail) : fail(id, name, detail);
+    // Both attempts failed before the theme could be judged: say so, so nobody blames the theme.
+    return fail(id, name, `TOOLING FAILURE (not a theme result, the theme was never rendered): ${problems.join(" | ")}`);
   } finally {
-    killTree(server?.child); // always, even on error
-    fs.rmSync(tmp, { recursive: true, force: true });
+    await removeDir(tmp);
   }
 }
 
