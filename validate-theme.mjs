@@ -145,9 +145,9 @@ const ACTIVATION_TIMEOUT_MS = 120_000;
 const SERVER_START_TIMEOUT_MS = 120_000;
 const SCORE_MIN = 90;
 
-const q = (s) => `"${s}"`; // args go through the shell on Windows (npx is a .cmd file)
+export const q = (s) => `"${s}"`; // args go through the shell on Windows (npx is a .cmd file)
 
-function startPlayground(args, logFile) {
+export function startPlayground(args, logFile) {
   // Output goes to a file, not a pipe: nothing can block on a full pipe while we wait.
   const fd = fs.openSync(logFile, "w");
   const child = spawn(`${PLAYGROUND} ${args.join(" ")}`, {
@@ -161,7 +161,7 @@ function startPlayground(args, logFile) {
   return { child, exited };
 }
 
-function killTree(child) {
+export function killTree(child) {
   if (!child?.pid) return;
   try {
     if (process.platform === "win32") spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore" });
@@ -181,10 +181,10 @@ async function removeDir(dir) {
   }
 }
 
-const readLog = (f) => (fs.existsSync(f) ? fs.readFileSync(f, "utf8") : "");
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+export const readLog = (f) => (fs.existsSync(f) ? fs.readFileSync(f, "utf8") : "");
+export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function freePort() {
+export function freePort() {
   return new Promise((resolve, reject) => {
     const srv = net.createServer();
     srv.once("error", reject);
@@ -296,9 +296,16 @@ function portInUse(port) {
 
 // Kill the whole process tree, then make sure the port is really free before returning.
 // If something still listens (a stray child), find its pid from the port and kill that too.
-async function stopServer(server, port) {
+export async function stopServer(server, port) {
   killTree(server?.child);
   if (!port) return;
+  // The shell/npx wrappers can exit before the real server does, which breaks the parent->child
+  // links that `taskkill /T` follows (a server was once left running this way). Also kill anything
+  // whose command line carries this server's unique --port=N.
+  if (process.platform === "win32") {
+    const ps = `Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -like '*--port=${port}*' } | ForEach-Object { taskkill /PID $_.ProcessId /T /F | Out-Null }`;
+    spawnSync("powershell", ["-NoProfile", "-Command", ps], { stdio: "ignore" });
+  }
   for (let i = 0; i < 20 && (await portInUse(port)); i++) {
     if (process.platform === "win32") {
       const out = spawnSync("netstat", ["-ano", "-p", "TCP"], { encoding: "utf8" }).stdout ?? "";
