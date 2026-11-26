@@ -3,38 +3,75 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ZipArchive } from "archiver";
 
+// Values shared by every style. A style only lists what differs.
 export const defaultConfig = {
-  name: "Modern Base",
-  slug: "modern-base",
+  name: "Theme",
+  slug: "theme",
   author: "Badrul Munir",
-  colors: {
-    base: "#ffffff",
-    contrast: "#111827",
-    primary: "#2563eb",
-    secondary: "#64748b",
-    accent: "#f1f5f9",
-  },
   fontFamily: "Inter, system-ui, sans-serif",
   fontSlug: "inter",
   fontName: "Inter",
+  headingFont: null, // optional { slug, name, fontFamily } used for h1-h4
   // Bundled font files live in themes/_assets/fonts and are copied to <slug>/assets/fonts.
-  // Inter from Google Fonts is one variable woff2 (latin) covering weights 100-900.
+  // Inter from Google Fonts is one variable woff2 (latin) covering weights 100-900,
+  // so a single face with a weight range serves 400, 500, 600 and so on.
   fontFiles: ["Inter-latin-variable.woff2"],
-  fontFaces: [
-    { fontWeight: "400", file: "Inter-latin-variable.woff2" },
-    { fontWeight: "500", file: "Inter-latin-variable.woff2" },
-  ],
+  fontFaces: [{ fontWeight: "100 900", file: "Inter-latin-variable.woff2" }],
   contentSize: "720px",
   wideSize: "1200px",
   blockGap: "1.5rem",
-  borderRadius: "8px",
   baseLineHeight: "1.7",
+  linkUnderline: false, // true = links always underlined
+  cardStyle: "lift", // "lift" = soft border + hover shadow/lift, "flat" = hairline only
   fontScale: {
     small: { min: "0.875rem", max: "0.9375rem" },
     medium: { min: "1rem", max: "1.0625rem" },
     large: { min: "1.25rem", max: "1.5rem" },
     xLarge: { min: "1.75rem", max: "2.25rem" },
     xxLarge: { min: "2.25rem", max: "3.5rem" },
+  },
+};
+
+// Token values that differ per style.
+//   borderRadius: buttons. cardRadius: cards and the CTA box.
+//   cardBg / footer.*: palette slugs. The footer is always lighter than the
+//   page on dark styles (bold) and darker on light styles.
+export const STYLES = {
+  modern: {
+    colors: { base: "#ffffff", contrast: "#0f172a", primary: "#2563eb", secondary: "#475569", accent: "#f8fafc" },
+    borderRadius: "8px",
+    cardRadius: "12px",
+    headingWeight: "500",
+    letterSpacing: "-0.02em",
+    cardBg: "base",
+    footer: { bg: "contrast", text: "base", link: "accent", hover: "base" },
+  },
+  minimal: {
+    colors: { base: "#ffffff", contrast: "#171717", primary: "#171717", secondary: "#737373", accent: "#fafafa" },
+    headingFont: { slug: "serif", name: "Serif", fontFamily: "Georgia, 'Times New Roman', Times, serif" },
+    borderRadius: "0px",
+    cardRadius: "0px",
+    headingWeight: "400",
+    letterSpacing: "-0.01em",
+    cardStyle: "flat",
+    linkUnderline: true, // primary equals body text colour, so underline marks links
+    cardBg: "base",
+    footer: { bg: "contrast", text: "base", link: "accent", hover: "base" },
+  },
+  bold: {
+    colors: { base: "#0f172a", contrast: "#ffffff", primary: "#a78bfa", secondary: "#94a3b8", accent: "#1e293b" },
+    borderRadius: "16px",
+    cardRadius: "16px",
+    headingWeight: "600",
+    letterSpacing: "-0.03em",
+    cardBg: "accent",
+    // Page is dark (base), so the footer uses accent, which is lighter than base.
+    footer: { bg: "accent", text: "contrast", link: "contrast", hover: "primary" },
+    fontScale: {
+      large: { min: "1.375rem", max: "1.75rem" },
+      xLarge: { min: "2rem", max: "3rem" },
+      xxLarge: { min: "2.75rem", max: "5rem" },
+    },
   },
 };
 
@@ -52,8 +89,8 @@ const HEADER = `<!-- wp:group {"className":"site-header","align":"wide","style":
 // The group is the <footer> element, so the template-part wrapper is a div
 // (see wrapMain) to avoid a footer nested in a footer. Link colours on the
 // dark background are set in style.css (.site-footer a).
-const FOOTER = `<!-- wp:group {"tagName":"footer","align":"full","className":"site-footer","backgroundColor":"contrast","textColor":"base","style":{"spacing":{"padding":{"top":"var:preset|spacing|50","bottom":"var:preset|spacing|50","left":"var:preset|spacing|40","right":"var:preset|spacing|40"}}},"layout":{"type":"constrained"}} -->
-<footer class="wp-block-group alignfull site-footer has-base-color has-contrast-background-color has-text-color has-background" style="padding-top:var(--wp--preset--spacing--50);padding-right:var(--wp--preset--spacing--40);padding-bottom:var(--wp--preset--spacing--50);padding-left:var(--wp--preset--spacing--40)">
+const FOOTER = `<!-- wp:group {"tagName":"footer","align":"full","className":"site-footer","backgroundColor":"%FOOT_BG%","textColor":"%FOOT_TX%","style":{"spacing":{"padding":{"top":"var:preset|spacing|50","bottom":"var:preset|spacing|50","left":"var:preset|spacing|40","right":"var:preset|spacing|40"}}},"layout":{"type":"constrained"}} -->
+<footer class="wp-block-group alignfull site-footer has-%FOOT_TX%-color has-%FOOT_BG%-background-color has-text-color has-background" style="padding-top:var(--wp--preset--spacing--50);padding-right:var(--wp--preset--spacing--40);padding-bottom:var(--wp--preset--spacing--50);padding-left:var(--wp--preset--spacing--40)">
 <!-- wp:group {"align":"wide","layout":{"type":"flex","flexWrap":"wrap","justifyContent":"space-between","verticalAlignment":"center"}} -->
 <div class="wp-block-group alignwide">
 <!-- wp:group {"layout":{"type":"flex","orientation":"vertical"}} -->
@@ -73,8 +110,8 @@ const FOOTER = `<!-- wp:group {"tagName":"footer","align":"full","className":"si
 <!-- /wp:group -->
 `;
 
-const CTA = `<!-- wp:group {"backgroundColor":"accent","style":{"border":{"radius":"12px"},"spacing":{"margin":{"left":"var:preset|spacing|40","right":"var:preset|spacing|40","bottom":"var:preset|spacing|60"},"padding":{"top":"var:preset|spacing|50","bottom":"var:preset|spacing|50","left":"var:preset|spacing|50","right":"var:preset|spacing|50"}}},"layout":{"type":"constrained","contentSize":"480px"}} -->
-<div class="wp-block-group has-accent-background-color has-background" style="border-radius:12px;margin-right:var(--wp--preset--spacing--40);margin-bottom:var(--wp--preset--spacing--60);margin-left:var(--wp--preset--spacing--40);padding-top:var(--wp--preset--spacing--50);padding-right:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--50);padding-left:var(--wp--preset--spacing--50)">
+const CTA = `<!-- wp:group {"backgroundColor":"accent","style":{"border":{"radius":"%CARD_R%"},"spacing":{"margin":{"left":"var:preset|spacing|40","right":"var:preset|spacing|40","bottom":"var:preset|spacing|60"},"padding":{"top":"var:preset|spacing|50","bottom":"var:preset|spacing|50","left":"var:preset|spacing|50","right":"var:preset|spacing|50"}}},"layout":{"type":"constrained","contentSize":"480px"}} -->
+<div class="wp-block-group has-accent-background-color has-background" style="border-radius:%CARD_R%;margin-right:var(--wp--preset--spacing--40);margin-bottom:var(--wp--preset--spacing--60);margin-left:var(--wp--preset--spacing--40);padding-top:var(--wp--preset--spacing--50);padding-right:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--50);padding-left:var(--wp--preset--spacing--50)">
 <!-- wp:heading {"textAlign":"center","fontSize":"large"} -->
 <h2 class="wp-block-heading has-text-align-center has-large-font-size">Want the newsletter?</h2>
 <!-- /wp:heading -->
@@ -83,8 +120,8 @@ const CTA = `<!-- wp:group {"backgroundColor":"accent","style":{"border":{"radiu
 <!-- /wp:paragraph -->
 <!-- wp:buttons {"layout":{"type":"flex","justifyContent":"center"}} -->
 <div class="wp-block-buttons">
-<!-- wp:button {"backgroundColor":"primary","textColor":"base","style":{"border":{"radius":"8px"}}} -->
-<div class="wp-block-button"><a class="wp-block-button__link has-base-color has-primary-background-color has-text-color has-background wp-element-button" style="border-radius:8px">Subscribe</a></div>
+<!-- wp:button {"backgroundColor":"primary","textColor":"base","style":{"border":{"radius":"%BTN_R%"}}} -->
+<div class="wp-block-button"><a class="wp-block-button__link has-base-color has-primary-background-color has-text-color has-background wp-element-button" style="border-radius:%BTN_R%">Subscribe</a></div>
 <!-- /wp:button -->
 </div>
 <!-- /wp:buttons -->
@@ -101,11 +138,11 @@ const HERO = `<!-- wp:group {"tagName":"section","backgroundColor":"accent","sty
 <!-- /wp:paragraph -->
 <!-- wp:buttons {"layout":{"type":"flex","justifyContent":"center"}} -->
 <div class="wp-block-buttons">
-<!-- wp:button {"backgroundColor":"primary","textColor":"base","style":{"border":{"radius":"8px"}}} -->
-<div class="wp-block-button"><a class="wp-block-button__link has-base-color has-primary-background-color has-text-color has-background wp-element-button" style="border-radius:8px">Get started</a></div>
+<!-- wp:button {"backgroundColor":"primary","textColor":"base","style":{"border":{"radius":"%BTN_R%"}}} -->
+<div class="wp-block-button"><a class="wp-block-button__link has-base-color has-primary-background-color has-text-color has-background wp-element-button" style="border-radius:%BTN_R%">Get started</a></div>
 <!-- /wp:button -->
-<!-- wp:button {"className":"is-style-outline","style":{"border":{"radius":"8px"}}} -->
-<div class="wp-block-button is-style-outline"><a class="wp-block-button__link wp-element-button" style="border-radius:8px">Read more</a></div>
+<!-- wp:button {"className":"is-style-outline","style":{"border":{"radius":"%BTN_R%"}}} -->
+<div class="wp-block-button is-style-outline"><a class="wp-block-button__link wp-element-button" style="border-radius:%BTN_R%">Read more</a></div>
 <!-- /wp:button -->
 </div>
 <!-- /wp:buttons -->
@@ -137,9 +174,9 @@ const POST_GRID = `<!-- wp:group {"tagName":"section","align":"wide","style":{"s
 <!-- wp:query {"query":{"perPage":6,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","inherit":false},"align":"wide"} -->
 <div class="wp-block-query alignwide">
 <!-- wp:post-template {"layout":{"type":"grid","columnCount":3,"minimumColumnWidth":"16rem"}} -->
-<!-- wp:group {"className":"post-card","backgroundColor":"base","style":{"border":{"width":"1px","radius":"12px"},"spacing":{"padding":{"top":"var:preset|spacing|30","bottom":"var:preset|spacing|30","left":"var:preset|spacing|30","right":"var:preset|spacing|30"}}},"layout":{"type":"constrained"}} -->
-<div class="wp-block-group post-card has-base-background-color has-background" style="border-width:1px;border-radius:12px;padding-top:var(--wp--preset--spacing--30);padding-right:var(--wp--preset--spacing--30);padding-bottom:var(--wp--preset--spacing--30);padding-left:var(--wp--preset--spacing--30)">
-<!-- wp:post-featured-image {"isLink":true,"aspectRatio":"16/9","style":{"border":{"radius":"8px"}}} /-->
+<!-- wp:group {"className":"post-card","backgroundColor":"%CARD_BG%","style":{"border":{"width":"1px","radius":"%CARD_R%"},"spacing":{"padding":{"top":"var:preset|spacing|30","bottom":"var:preset|spacing|30","left":"var:preset|spacing|30","right":"var:preset|spacing|30"}}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group post-card has-%CARD_BG%-background-color has-background" style="border-width:1px;border-radius:%CARD_R%;padding-top:var(--wp--preset--spacing--30);padding-right:var(--wp--preset--spacing--30);padding-bottom:var(--wp--preset--spacing--30);padding-left:var(--wp--preset--spacing--30)">
+<!-- wp:post-featured-image {"isLink":true,"aspectRatio":"16/9","style":{"border":{"radius":"%IMG_R%"}}} /-->
 <!-- wp:post-terms {"term":"category","fontSize":"small","textColor":"primary"} /-->
 <!-- wp:post-title {"level":3,"isLink":true,"fontSize":"large","style":{"typography":{"textDecoration":"none"}}} /-->
 <!-- wp:post-excerpt {"moreText":"","excerptLength":18,"textColor":"secondary","fontSize":"small"} /-->
@@ -180,19 +217,32 @@ Text Domain: ${c.slug}
   border-bottom: 1px solid color-mix(in srgb, var(--wp--preset--color--contrast) 12%, transparent);
 }
 
-/* Footer links: the accent colour (not the blue primary) stays readable on the dark contrast background. */
+/* Footer links use a palette colour chosen per style to stay readable on the footer background. */
 .site-footer a {
-  color: var(--wp--preset--color--accent);
+  color: var(--wp--preset--color--${c.footer.link});
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }
 
 .site-footer a:hover,
 .site-footer a:focus {
-  color: var(--wp--preset--color--base);
+  color: var(--wp--preset--color--${c.footer.hover});
 }
 
+${cardCss(c)}`;
+}
+
+function cardCss(c) {
+  if (c.cardStyle === "flat") {
+    return `/* Hairline cards: no shadow, no hover lift. */
 .post-card {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--wp--preset--color--contrast) 20%, transparent);
+  box-shadow: none;
+}
+`;
+  }
+  return `.post-card {
   border-style: solid;
   border-color: color-mix(in srgb, var(--wp--preset--color--contrast) 10%, transparent);
   transition: transform 150ms ease, box-shadow 150ms ease;
@@ -208,6 +258,22 @@ Text Domain: ${c.slug}
   .post-card:hover { transform: none; }
 }
 `;
+}
+
+// Fill the %TOKEN% placeholders in the fixed template/part markup.
+function fillMarkup(markup, c) {
+  const imgR = `${Math.max(0, parseInt(c.cardRadius, 10) - 4)}px`;
+  const map = {
+    "%BTN_R%": c.borderRadius,
+    "%CARD_R%": c.cardRadius,
+    "%IMG_R%": imgR,
+    "%CARD_BG%": c.cardBg,
+    "%FOOT_BG%": c.footer.bg,
+    "%FOOT_TX%": c.footer.text,
+  };
+  let out = markup;
+  for (const [token, value] of Object.entries(map)) out = out.split(token).join(value);
+  return out;
 }
 
 // [slug, display name, fontScale key]
@@ -238,15 +304,33 @@ function themeJson(c) {
     color,
     name: names[slug] ?? slug[0].toUpperCase() + slug.slice(1),
   }));
-  const heading = (size, top, bottom, lineHeight, letterSpacing, fontWeight) => ({
+  const headingFamily = c.headingFont ? pv("font-family", c.headingFont.slug) : undefined;
+  const heading = (size, top, bottom, lineHeight, letterSpacing) => ({
     typography: {
+      ...(headingFamily && { fontFamily: headingFamily }),
       fontSize: pv("font-size", size),
       lineHeight,
       ...(letterSpacing && { letterSpacing }),
-      fontWeight,
+      fontWeight: c.headingWeight,
     },
     spacing: { margin: { top, bottom } },
   });
+  const halfSpacing = `${parseFloat(c.letterSpacing) / 2}em`;
+  const fontFamilies = [
+    {
+      slug: c.fontSlug,
+      name: c.fontName,
+      fontFamily: c.fontFamily,
+      fontFace: c.fontFaces.map((ff) => ({
+        fontFamily: c.fontName,
+        fontWeight: ff.fontWeight,
+        fontStyle: "normal",
+        fontDisplay: "swap",
+        src: [`file:./assets/fonts/${ff.file}`],
+      })),
+    },
+    ...(c.headingFont ? [c.headingFont] : []),
+  ];
   return {
     $schema: "https://schemas.wp.org/trunk/theme.json",
     version: 3,
@@ -255,20 +339,7 @@ function themeJson(c) {
       color: { custom: false, defaultPalette: false, palette },
       typography: {
         fluid: true,
-        fontFamilies: [
-          {
-            slug: c.fontSlug,
-            name: c.fontName,
-            fontFamily: c.fontFamily,
-            fontFace: c.fontFaces.map((f) => ({
-              fontFamily: c.fontName,
-              fontWeight: f.fontWeight,
-              fontStyle: "normal",
-              fontDisplay: "swap",
-              src: [`file:./assets/fonts/${f.file}`],
-            })),
-          },
-        ],
+        fontFamilies,
         fontSizes: FONT_SIZES.map(([slug, name, key]) => ({
           slug,
           name,
@@ -292,7 +363,7 @@ function themeJson(c) {
       elements: {
         link: {
           color: { text: pv("color", "primary") },
-          typography: { textDecoration: "none" },
+          typography: { textDecoration: c.linkUnderline ? "underline" : "none" },
           ":hover": { typography: { textDecoration: "underline" } },
         },
         button: {
@@ -300,20 +371,24 @@ function themeJson(c) {
           spacing: { padding: { top: "0.75rem", bottom: "0.75rem", left: "1.5rem", right: "1.5rem" } },
           border: { radius: c.borderRadius },
         },
-        h1: heading("xx-large", "2rem", "1rem", "1.1", "-0.02em", "500"),
-        h2: heading("x-large", "1.75rem", "0.875rem", "1.2", "-0.01em", "500"),
-        h3: heading("large", "1.5rem", "0.75rem", "1.3", undefined, "500"),
-        h4: heading("medium", "1.25rem", "0.625rem", "1.3", undefined, "500"),
+        h1: heading("xx-large", "2rem", "1rem", "1.1", c.letterSpacing),
+        h2: heading("x-large", "1.75rem", "0.875rem", "1.2", halfSpacing),
+        h3: heading("large", "1.5rem", "0.75rem", "1.3"),
+        h4: heading("medium", "1.25rem", "0.625rem", "1.3"),
       },
       blocks: { "core/paragraph": { typography: { lineHeight: c.baseLineHeight } } },
     },
   };
 }
 
-export function generateTheme(config, outDir) {
-  const c = { ...defaultConfig, ...config };
-  c.colors = { ...defaultConfig.colors, ...config?.colors };
-  c.fontScale = { ...defaultConfig.fontScale, ...config?.fontScale };
+export function generateTheme(styleName, overrides, outDir) {
+  const style = STYLES[styleName];
+  if (!style) throw new Error(`unknown style "${styleName}" (have: ${Object.keys(STYLES).join(", ")})`);
+  // defaults < style < overrides; nested token groups merge one level deep
+  const c = { ...defaultConfig, ...style, ...overrides };
+  for (const k of ["colors", "fontScale", "footer"]) {
+    c[k] = { ...defaultConfig[k], ...style[k], ...overrides?.[k] };
+  }
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(c.slug)) {
     throw new Error(`slug must be kebab-case: "${c.slug}"`);
   }
@@ -321,12 +396,12 @@ export function generateTheme(config, outDir) {
   const files = {
     "style.css": styleCss(c),
     "theme.json": JSON.stringify(themeJson(c), null, 2) + "\n",
-    "templates/index.html": INDEX,
-    "templates/front-page.html": FRONT_PAGE,
-    "templates/single.html": SINGLE,
-    "templates/page.html": PAGE,
-    "parts/header.html": HEADER,
-    "parts/footer.html": FOOTER,
+    "templates/index.html": fillMarkup(INDEX, c),
+    "templates/front-page.html": fillMarkup(FRONT_PAGE, c),
+    "templates/single.html": fillMarkup(SINGLE, c),
+    "templates/page.html": fillMarkup(PAGE, c),
+    "parts/header.html": fillMarkup(HEADER, c),
+    "parts/footer.html": fillMarkup(FOOTER, c),
   };
   for (const [rel, content] of Object.entries(files)) {
     const p = path.join(root, rel);
@@ -360,14 +435,14 @@ export function zipTheme(slug, outDir) {
 
 // ---- CLI ----------------------------------------------------------------
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const slug = process.argv[2];
-  if (!slug) {
-    console.error("Usage: node themegen.mjs <slug>");
+  const [styleName, slug] = process.argv.slice(2);
+  if (!STYLES[styleName] || !slug) {
+    console.error(`Usage: node themegen.mjs <${Object.keys(STYLES).join("|")}> <slug>`);
     process.exit(1);
   }
   const outDir = path.resolve("generated");
   const name = slug.split("-").map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
-  const { dir, files } = generateTheme({ ...defaultConfig, slug, name }, outDir);
+  const { dir, files } = generateTheme(styleName, { slug, name }, outDir);
   const zip = await zipTheme(slug, outDir);
   console.log("Theme dir:", dir);
   console.log("Zip:      ", zip);

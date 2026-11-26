@@ -12,7 +12,7 @@ Text Domain: modern-base
   border-bottom: 1px solid color-mix(in srgb, var(--wp--preset--color--contrast) 12%, transparent);
 }
 
-/* Footer links: the accent colour (not the blue primary) stays readable on the dark contrast background. */
+/* Footer links use a palette colour chosen per style to stay readable on the footer background. */
 .site-footer a {
   color: var(--wp--preset--color--accent);
   text-decoration: underline;

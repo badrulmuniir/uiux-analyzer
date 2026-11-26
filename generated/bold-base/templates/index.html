@@ -1,0 +1,30 @@
+<!-- wp:template-part {"slug":"header","tagName":"header"} /-->
+<!-- wp:group {"tagName":"main","layout":{"type":"constrained"}} -->
+<main class="wp-block-group">
+<!-- wp:group {"tagName":"section","align":"wide","style":{"spacing":{"padding":{"top":"var:preset|spacing|60","bottom":"var:preset|spacing|60"}}},"layout":{"type":"constrained"}} -->
+<section class="wp-block-group alignwide" style="padding-top:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--60)">
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Latest writing</h2>
+<!-- /wp:heading -->
+<!-- wp:paragraph {"textColor":"secondary","fontSize":"small"} -->
+<p class="has-secondary-color has-text-color has-small-font-size">Notes from the studio</p>
+<!-- /wp:paragraph -->
+<!-- wp:query {"query":{"perPage":6,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","inherit":false},"align":"wide"} -->
+<div class="wp-block-query alignwide">
+<!-- wp:post-template {"layout":{"type":"grid","columnCount":3,"minimumColumnWidth":"16rem"}} -->
+<!-- wp:group {"className":"post-card","backgroundColor":"accent","style":{"border":{"width":"1px","radius":"16px"},"spacing":{"padding":{"top":"var:preset|spacing|30","bottom":"var:preset|spacing|30","left":"var:preset|spacing|30","right":"var:preset|spacing|30"}}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group post-card has-accent-background-color has-background" style="border-width:1px;border-radius:16px;padding-top:var(--wp--preset--spacing--30);padding-right:var(--wp--preset--spacing--30);padding-bottom:var(--wp--preset--spacing--30);padding-left:var(--wp--preset--spacing--30)">
+<!-- wp:post-featured-image {"isLink":true,"aspectRatio":"16/9","style":{"border":{"radius":"12px"}}} /-->
+<!-- wp:post-terms {"term":"category","fontSize":"small","textColor":"primary"} /-->
+<!-- wp:post-title {"level":3,"isLink":true,"fontSize":"large","style":{"typography":{"textDecoration":"none"}}} /-->
+<!-- wp:post-excerpt {"moreText":"","excerptLength":18,"textColor":"secondary","fontSize":"small"} /-->
+</div>
+<!-- /wp:group -->
+<!-- /wp:post-template -->
+</div>
+<!-- /wp:query -->
+</section>
+<!-- /wp:group -->
+</main>
+<!-- /wp:group -->
+<!-- wp:template-part {"slug":"footer","tagName":"div"} /-->

@@ -17,7 +17,7 @@
         },
         {
           "slug": "contrast",
-          "color": "#111827",
+          "color": "#0f172a",
           "name": "Contrast"
         },
         {
@@ -27,12 +27,12 @@
         },
         {
           "slug": "secondary",
-          "color": "#64748b",
+          "color": "#475569",
           "name": "Secondary"
         },
         {
           "slug": "accent",
-          "color": "#f1f5f9",
+          "color": "#f8fafc",
           "name": "Accent"
         }
       ]
@@ -47,16 +47,7 @@
           "fontFace": [
             {
               "fontFamily": "Inter",
-              "fontWeight": "400",
-              "fontStyle": "normal",
-              "fontDisplay": "swap",
-              "src": [
-                "file:./assets/fonts/Inter-latin-variable.woff2"
-              ]
-            },
-            {
-              "fontFamily": "Inter",
-              "fontWeight": "500",
+              "fontWeight": "100 900",
               "fontStyle": "normal",
               "fontDisplay": "swap",
               "src": [
